@@ -1,10 +1,21 @@
 import { useState } from "react";
 import { Copy } from "lucide-react";
+import { auth } from "./firebase";
+import { useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut
+} from "firebase/auth";
 
 export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState([]);
+  const [user, setUser] = useState(null);
+  const provider = new GoogleAuthProvider();
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false)
@@ -150,6 +161,37 @@ Revenue Model:`
   }
 ];
 
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(
+    auth,
+    (currentUser) => {
+      setUser(currentUser);
+    }
+  );
+
+  return () => unsubscribe();
+}, []);
+
+const handleGoogleLogin = async () => {
+  try {
+    const result = await signInWithPopup(
+      auth,
+      provider
+    );
+
+    setUser(result.user);
+
+    console.log(result.user);
+
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const handleLogout = async () => {
+  await signOut(auth);
+  setUser(null);
+};
 
   const generatePrompt = async () => {
     if (!input.trim()) return;
@@ -333,12 +375,13 @@ if (page === "templates") {
     ))}
   </div>
 )}
+
 <div className="shooting-star"></div>
       <div
-        className={`${
-          sidebarOpen ? "w-[280px]" : "w-[80px]"
-        } transition-all duration-300 border-r border-white/10 p-4`}
-      >
+  className={`${sidebarOpen ? "w-[280px]" : "w-[80px]"}
+  transition-all duration-300 border-r border-white/10 p-4
+  relative min-h-screen`}
+>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="text-3xl"
@@ -383,7 +426,35 @@ if (page === "templates") {
         {item}
       </div>
     ))}
+
+   {user ? (
+<div className="absolute bottom-6 left-4 right-4 border-t border-white/10 pt-4">
+    <div className="text-center">
+      <p className="text-xs opacity-60 mb-1">
+        Signed in as
+      </p>
+
+      <p className="text-sm font-medium truncate">
+        {user.displayName}
+      </p>
+
+      <button
+        onClick={handleLogout}
+        className="text-red-400 text-xs mt-2 hover:text-red-300"
+      >
+        Logout
+      </button>
+    </div>
   </div>
+) : (
+  <button
+    onClick={handleGoogleLogin}
+    className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition"
+  >
+    Sign in with Google
+  </button>
+)}
+</div>
   </div>
 
             </>
@@ -430,7 +501,7 @@ if (page === "templates") {
       value={input}
       onChange={(e) => setInput(e.target.value)}
       rows={4}
-      placeholder="Describe your idea..."
+      placeholder="Every great prompt starts with a little context. (e.g., Write an internship email for a Cyber Security role)"
       className="w-full bg-transparent outline-none resize-none text-lg"
     />
 
