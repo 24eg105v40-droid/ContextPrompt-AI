@@ -1,11 +1,21 @@
 import { useState } from "react";
 import { Copy } from "lucide-react";
+import { WandSparkles } from "lucide-react";
+import {
+  Sparkles,
+  History,
+  Zap,
+} from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import { signInWithPopup } from "firebase/auth";
+import { auth, provider } from "./firebase";
 
 export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState([]);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [saved, setSaved] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false)
 const copyPrompt = async (text, index) => {
@@ -17,6 +27,20 @@ const copyPrompt = async (text, index) => {
     setCopiedIndex(null);
   }, 2000);
 };
+const handleGoogleLogin = async () => {
+  try {
+    const result = await signInWithPopup(
+      auth,
+      provider
+    );
+
+    console.log(result.user);
+
+    setLoggedIn(true);
+  } catch (error) {
+    console.log(error);
+  }
+};
 
   const [history, setHistory] = useState([
     "Explain DBMS with examples",
@@ -26,15 +50,6 @@ const copyPrompt = async (text, index) => {
 
   const [page, setPage] = useState("home");
 
-  const hour = new Date().getHours();
-  const isMorning = hour >= 6 && hour < 18;
-
-  const examples = [
-    "📚 Study notes",
-    "💻 Coding help",
-    "📧 Professional email",
-    "🎤 Presentation ideas",
-  ];
 
   const exploreItems = [
   {
@@ -150,7 +165,6 @@ Revenue Model:`
   }
 ];
 
-
   const generatePrompt = async () => {
     if (!input.trim()) return;
 
@@ -215,9 +229,9 @@ const prompts = sections.map((section) => {
 setResult(prompts);
 
       setHistory((prev) => [input, ...prev]);
-    } catch (err) {
-      setResult("⚠ Error generating prompt");
-    }
+    }  catch (err) {
+  setResult([]);
+}
 
     setLoading(false);
   };
@@ -251,6 +265,7 @@ setResult(prompts);
         ))}
       </div>
     )
+
   };
 if (page === "templates") {
   return (
@@ -282,9 +297,9 @@ if (page === "templates") {
     </div>
   );
 }
-
     if (page === "saved") {
       return (
+
         <div>
           <h2 className="text-4xl font-bold mb-6">
             Saved Prompts
@@ -305,120 +320,240 @@ if (page === "templates") {
         </div>
       );
     }
-
     return null;
   };
 
   return (
-    <div
-      className={`min-h-screen flex ${
-        isMorning
-          ? "bg-gradient-to-b from-[#fff7c2] via-[#ffc6b3] to-[#ffe8dc] text-[#2d1f1a]"
-          : "bg-gradient-to-b from-[#090b1a] via-[#15193a] to-[#050510] text-white"
-      }`}
-    >
-        {/* Animated Stars */}
-{!isMorning && (
-  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-    {[...Array(25)].map((_, i) => (
-      <div
-        key={i}
-        className="star"
-        style={{
-          top: `${Math.random() * 100}%`,
-          left: `${Math.random() * 100}%`,
-          animationDelay: `${Math.random() * 3}s`,
-        }}
-      />
-    ))}
-  </div>
-)}
-<div className="shooting-star"></div>
-      <div
-        className={`${
-          sidebarOpen ? "w-[280px]" : "w-[80px]"
-        } transition-all duration-300 border-r border-white/10 p-4`}
-      >
+
+<div
+  className="min-h-screen flex text-[#1f1f2e] bg-[#faf9ff]"
+  style={{
+    backgroundImage: `
+      linear-gradient(#dfe0ff 1px, transparent 1px),
+      linear-gradient(90deg, #dfe0ff 1px, transparent 1px)
+    `,
+    backgroundSize: "16px 16px",
+  }}
+>
+
+  <div
+  className={`
+    ${sidebarOpen ? "w-72" : "w-20"}
+    transition-all duration-300
+    border-r border-[#dfe0ff]
+    p-4
+    overflow-hidden
+  `}
+>
         <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-3xl"
-        >
-          ☰
-        </button>
+  onClick={() => setSidebarOpen(!sidebarOpen)}
+  className="text-3xl"
+>
+  ☰
+</button>
 
-        {sidebarOpen && (
-          <>
-            <button
-              onClick={() => setPage("home")}
-              className="block mt-8"
-            >
-              🏠 Home
-            </button>
-
-            <button
-              onClick={() => setPage("explore")}
-              className="block mt-4"
-            >
-              🔍 Explore
-            </button>
-
-            <button
-              onClick={() => setPage("templates")}
-              className="block mt-4"
-            >
-              📂 Templates
-            </button>
-              <div className="flex flex-col h-full">
-
-  <div className="mt-10">
-    <p className="text-xs opacity-50 mb-4">
-      RECENT
-    </p>
-
-    {history.map((item, index) => (
+{sidebarOpen && (
+  <>
+    {/* Logo */}
+    <div className="flex items-center gap-4 mt-6 mb-10">
       <div
-        key={index}
-        className="mb-3 text-sm"
+        className="
+          w-14 h-14
+          rounded-full
+          bg-gradient-to-br
+          from-[#8f8cff]
+          to-[#7c78ff]
+          flex
+          items-center
+          justify-center
+          shadow-md
+          shrink-0
+        "
       >
-        {item}
+        <span className="text-white text-2xl">
+          ✨
+        </span>
       </div>
-    ))}
-  </div>
-  </div>
 
-            </>
-        )}
+      <div>
+        <h2 className="font-extrabold text-xl leading-none">
+          ContextPrompt AI
+        </h2>
+
+        <p className="text-xs text-gray-500">
+          AI Prompt Generator
+        </p>
+      </div>
+    </div>
+
+    {/* Navigation */}
+    <div className="flex flex-col gap-4">
+      <button
+        onClick={() => setPage("home")}
+        className="text-left"
+      >
+        🏠 Home
+      </button>
+
+      <button
+        onClick={() => setPage("explore")}
+        className="text-left"
+      >
+        🔍 Explore
+      </button>
+
+      <button
+        onClick={() => setPage("templates")}
+        className="text-left"
+      >
+        📂 Templates
+      </button>
+    </div>
+
+    {/* Recent */}
+    <div className="mt-10">
+      <p className="text-xs opacity-50 mb-4">
+        RECENT
+      </p>
+
+      {history.map((item, index) => (
+        <div
+          key={index}
+          className="mb-3 text-sm"
+        >
+          {item}
+        </div>
+      ))}
+    </div>
+  </>
+)}
 </div>
+{/* menu */}
 
-  {/* menu */}
-
-       <div className="flex-1 p-10 overflow-y-auto">
+      <div className="flex-1 p-10 overflow-y-auto relative">
+       <div className="absolute top-8 right-8">
+  <button
+    onClick={handleGoogleLogin}
+    className="
+      flex items-center gap-2
+      bg-white
+      border border-[#e7e7ff]
+      px-4 py-2
+      rounded-xl
+      shadow-sm
+      hover:shadow-md
+      transition
+    "
+  >
+    <FcGoogle size={20} />
+   <span>
+  {loggedIn
+    ? "Signed In"
+    : "Sign in"}
+</span>
+  </button>
+</div>
         {page !== "home" ? (
           renderPage()
         ) : (
           <>
-            <h1 className="text-6xl font-bold text-center">
-              ContextPrompt AI
-            </h1>
-
-            <p className="text-center mt-4 opacity-80">
-                Where ideas learn to speak AI 🪐
-            </p>
-            <div className="flex flex-wrap justify-center gap-3 mt-10">
-              {examples.map((item, index) => (
-                <button
-                  key={index}
-                  onClick={() => setInput(item)}
-                  className="px-4 py-2 rounded-full bg-white/10"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-  <div className="max-w-4xl mx-auto mt-10">
+<div className="text-center mt-10">
+  {/* Badge */}
   <div
     className="
-      bg-white/10
+      inline-flex
+      items-center
+      gap-2
+      px-6
+      py-3
+      rounded-full
+      border
+      border-[#cfcfff]
+      text-[#8b8cff]
+      bg-white/40
+      backdrop-blur-sm
+    "
+  >
+    ✨ AI-Powered Prompt Engineering
+  </div>
+
+  {/* Heading */}
+  <h1
+    className="
+      mt-10
+      text-2xl
+      md:text-4xl
+      font-extrabold
+      leading-none
+      text-[#1f1f2e]
+    "
+  >
+    Craft Perfect Prompts
+    <br />
+
+    with{" "}
+    <span
+      className="
+        bg-gradient-to-r
+        from-[#7f8cff]
+        via-[#c8a0ff]
+        to-[#ffb3d9]
+        bg-clip-text
+        text-transparent
+      "
+    >
+      ContextPrompt AI
+    </span>
+  </h1>
+
+  {/* Description */}
+  <p
+    className="
+      max-w-4xl
+      mx-auto
+      mt-8
+      text-1xl
+      text-gray-500
+    "
+  >
+    Generate powerful, effective AI prompts tailored to your needs.
+    Save your history and refine your prompt engineering skills.
+  </p>
+
+  {/* Feature Pills */}
+<div className="flex flex-wrap justify-center gap-4 mt-8">
+
+  <div className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/70 border border-[#e7e7ff]">
+    <WandSparkles
+      size={24}
+      className="text-[#8f8cff]"
+    />
+    <span>Smart Generation</span>
+  </div>
+
+  <div className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/70 border border-[#e7e7ff]">
+    <History
+      size={24}
+      className="text-[#8f8cff]"
+    />
+    <span>Save History</span>
+  </div>
+
+  <div className="flex items-center gap-3 px-8 py-4 rounded-full bg-white/70 border border-[#e7e7ff]">
+    <Zap
+      size={24}
+      className="text-[#8f8cff]"
+    />
+    <span>Instant Results</span>
+  </div>
+
+</div>
+
+</div>
+ <div className="max-w-xl mx-auto mt-16">
+  <div
+    className="
+      bg-white/70
       backdrop-blur-xl
       border border-white/20
       shadow-2xl
@@ -429,7 +564,7 @@ if (page === "templates") {
     <textarea
       value={input}
       onChange={(e) => setInput(e.target.value)}
-      rows={4}
+      rows={6}
       placeholder="Describe your idea..."
       className="w-full bg-transparent outline-none resize-none text-lg"
     />
@@ -437,7 +572,9 @@ if (page === "templates") {
     <div className="flex justify-end mt-3">
       <button
         onClick={generatePrompt}
-        className="px-6 py-3 rounded-xl bg-white text-black font-semibold"
+        className="px-6 py-3 rounded-xl bg-[#b8b7f3]
+hover:bg-[#a8a7ef]
+text-white font-semibold"
       >
         ✨ Generate
       </button>
@@ -452,7 +589,14 @@ if (page === "templates") {
   {result.map((item, index) => (
     <div
       key={index}
-      className="bg-white/10 p-6 rounded-3xl"
+     className="
+bg-white/70
+backdrop-blur-md
+border border-[#dfe0ff]
+p-6
+rounded-3xl
+shadow-lg
+"
     >
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">
@@ -477,9 +621,10 @@ if (page === "templates") {
 
   </div>
 )}
-            </>
+</>
+
         )}
         </div>
-</div>
-  );
-}
+        </div>
+  )}
+  
