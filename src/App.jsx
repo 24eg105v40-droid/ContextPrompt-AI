@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Copy } from "lucide-react";
 import { WandSparkles } from "lucide-react";
 import {
@@ -9,6 +8,13 @@ import {
 import { FcGoogle } from "react-icons/fc";
 import { signInWithPopup } from "firebase/auth";
 import { auth, provider } from "./firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { useState, useEffect } from "react";
+import { signOut } from "firebase/auth";
+import {
+  BriefcaseBusiness,
+  Brain
+} from "lucide-react";
 
 export default function App() {
   const [input, setInput] = useState("");
@@ -17,7 +23,7 @@ export default function App() {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [saved, setSaved] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [user, setUser] = useState(null);
 const copyPrompt = async (text, index) => {
   await navigator.clipboard.writeText(text);
 
@@ -34,21 +40,70 @@ const handleGoogleLogin = async () => {
       provider
     );
 
-    console.log(result.user);
+    setUser(result.user);
 
-    setLoggedIn(true);
+    localStorage.setItem(
+      "user",
+      JSON.stringify(result.user)
+    );
+
   } catch (error) {
     console.log(error);
   }
 };
+useEffect(() => {
+  const savedUser =
+    JSON.parse(
+      localStorage.getItem("user")
+    );
 
-  const [history, setHistory] = useState([
-    "Explain DBMS with examples",
-    "Write internship email",
-    "Create startup pitch",
-  ]);
+  if (savedUser) {
+    setUser(savedUser);
+  }
+}, []);
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(
+    auth,
+    (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        setUser(null);
+      }
+    }
+  );
 
+const handleLogout = async () => {
+  await signOut(auth);
+
+  localStorage.removeItem("user");
+
+  setUser(null);
+};
+
+  return () => unsubscribe();
+}, []);
+  const [history, setHistory] = useState([]);
+const [savedPrompts, setSavedPrompts] =
+  useState([]);
+  useEffect(() => {
+  const prompts =
+    JSON.parse(
+      localStorage.getItem("savedPrompts")
+    ) || [];
+
+  setSavedPrompts(prompts);
+}, []);
   const [page, setPage] = useState("home");
+
+  useEffect(() => {
+  const savedHistory =
+    JSON.parse(
+      localStorage.getItem("history")
+    ) || [];
+
+  setHistory(savedHistory);
+}, []);
 
 
   const exploreItems = [
@@ -215,7 +270,16 @@ Format exactly like this:
         data?.choices?.[0]?.message?.content ||
         "No response";
 
-      const sections = text.split("###").filter(Boolean);
+      const sections = text
+  .split("###")
+  .filter(Boolean)
+  .map((section) => {
+    const lines = section.trim().split("\n");
+    return {
+      title: lines[0]?.trim() || "Prompt",
+      text: lines.slice(1).join("\n").trim(),
+    };
+  });
 
 const prompts = sections.map((section) => {
   const lines = section.trim().split("\n");
@@ -228,8 +292,16 @@ const prompts = sections.map((section) => {
 
 setResult(prompts);
 
-      setHistory((prev) => [input, ...prev]);
+      const updatedHistory = [input, ...history];
+
+setHistory(updatedHistory);
+
+localStorage.setItem(
+  "history",
+  JSON.stringify(updatedHistory)
+);
     }  catch (err) {
+  console.error("AI Error:", err);
   setResult([]);
 }
 
@@ -237,10 +309,23 @@ setResult(prompts);
   };
 
   const savePrompt = () => {
-    if (!result) return;
-    setSaved((prev) => [result, ...prev]);
-  };
+  const updated = [
+    ...savedPrompts,
+    ...result
+  ];
 
+  setSavedPrompts(updated);
+
+  localStorage.setItem(
+    "savedPrompts",
+    JSON.stringify(updated)
+  );
+};
+const handleLogout = async () => {
+  await signOut(auth);
+  localStorage.removeItem("user");
+  setUser(null);
+};
   const renderPage = () => {
   if (page === "explore") {
     return (
@@ -297,29 +382,23 @@ if (page === "templates") {
     </div>
   );
 }
-    if (page === "saved") {
-      return (
+if (page === "saved") {
+  return (
+    <div>
+      <h2 className="text-4xl font-bold mb-6">Saved Prompts</h2>
 
-        <div>
-          <h2 className="text-4xl font-bold mb-6">
-            Saved Prompts
-          </h2>
-
-          {saved.length === 0 ? (
-            <p>No saved prompts yet.</p>
-          ) : (
-            saved.map((item, index) => (
-              <div
-                key={index}
-                className="bg-white/10 p-5 rounded-3xl mb-4"
-              >
-                {item}
-              </div>
-            ))
-          )}
-        </div>
-      );
-    }
+      {savedPrompts.length === 0 ? (
+        <p>No saved prompts yet.</p>
+      ) : (
+        savedPrompts.map((item, index) => (
+          <div key={index} className="bg-white/10 p-5 rounded-3xl mb-4">
+            {item.text}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
     return null;
   };
 
@@ -327,199 +406,221 @@ if (page === "templates") {
 
 <div
   className="min-h-screen flex text-[#1f1f2e] bg-[#faf9ff]"
-  style={{
-    backgroundImage: `
-      linear-gradient(#dfe0ff 1px, transparent 1px),
-      linear-gradient(90deg, #dfe0ff 1px, transparent 1px)
-    `,
-    backgroundSize: "16px 16px",
-  }}
+style={{
+  backgroundColor: "#f8fbff",
+  backgroundImage: `
+    radial-gradient(circle at top, rgba(125, 170, 255, 0.18), transparent 40%),
+    linear-gradient(rgba(125, 170, 255, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 170, 255, 0.10) 1px, transparent 1px)
+  `,
+  backgroundSize: "100% 100%, 26px 26px, 26px 26px",
+}}
 >
 
-  <div
+ <div
   className={`
-    ${sidebarOpen ? "w-72" : "w-20"}
+    ${sidebarOpen ? "w-65" : "w-20"}
     transition-all duration-300
     border-r border-[#dfe0ff]
     p-4
     overflow-hidden
+    flex flex-col
+    h-screen
+    sticky top-0
   `}
 >
-        <button
+<div className="mb-8 flex justify-start">
+<button
   onClick={() => setSidebarOpen(!sidebarOpen)}
-  className="text-3xl"
+  className="
+    absolute
+    top-4
+    left-4
+    text-3xl
+    z-50
+  "
 >
   ☰
 </button>
-
-{sidebarOpen && (
-  <>
+</div>
     {/* Logo */}
-    <div className="flex items-center gap-4 mt-6 mb-10">
-      <div
-        className="
-          w-14 h-14
-          rounded-full
-          bg-gradient-to-br
-          from-[#8f8cff]
-          to-[#7c78ff]
-          flex
-          items-center
-          justify-center
-          shadow-md
-          shrink-0
-        "
-      >
-        <span className="text-white text-2xl">
-          ✨
-        </span>
-      </div>
 
-      <div>
-        <h2 className="font-extrabold text-xl leading-none">
-          ContextPrompt AI
-        </h2>
+  {sidebarOpen && (
+  <div className="mb-8">
+    <h2 className="font-extrabold text-xl leading-none flex items-center gap-2">
+      🚀 ContextPrompt AI
+    </h2>
 
-        <p className="text-xs text-gray-500">
-          AI Prompt Generator
-        </p>
-      </div>
-    </div>
+    <p className="text-xs text-gray-500">
+      AI Prompt Generator
+    </p>
+  </div>
+)}
 
     {/* Navigation */}
-    <div className="flex flex-col gap-4">
-      <button
-        onClick={() => setPage("home")}
-        className="text-left"
-      >
-        🏠 Home
-      </button>
+   <button
+  onClick={() => setPage("home")}
+  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/20"
+>
+  <span>🏠</span>
+  {sidebarOpen && <span>Home</span>}
+</button>
 
-      <button
-        onClick={() => setPage("explore")}
-        className="text-left"
-      >
-        🔍 Explore
-      </button>
+<button
+  onClick={() => setPage("explore")}
+  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/20"
+>
+  <span>🔍</span>
+  {sidebarOpen && <span>Explore</span>}
+</button>
 
-      <button
-        onClick={() => setPage("templates")}
-        className="text-left"
-      >
-        📂 Templates
-      </button>
-    </div>
+<button
+  onClick={() => setPage("templates")}
+  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/20"
+>
+  <span>📂</span>
+  {sidebarOpen && <span>Templates</span>}
+</button>
 
     {/* Recent */}
-    <div className="mt-10">
-      <p className="text-xs opacity-50 mb-4">
-        RECENT
-      </p>
+{sidebarOpen && (
+  <div className="mt-10">
+    <p className="text-xs opacity-50 mb-4">
+      RECENT
+    </p>
 
-      {history.map((item, index) => (
-        <div
-          key={index}
-          className="mb-3 text-sm"
-        >
-          {item}
-        </div>
-      ))}
-    </div>
-  </>
+    {history.map((item, index) => (
+      <div
+        key={index}
+        className="mb-3 text-sm"
+      >
+        {item}
+      </div>
+    ))}
+
+    <button
+      onClick={() => {
+        localStorage.removeItem("history");
+        setHistory([]);
+      }}
+      className="mt-2"
+    >
+      Clear History
+    </button>
+  </div>
 )}
-</div>
-{/* menu */}
 
-      <div className="flex-1 p-10 overflow-y-auto relative">
-       <div className="absolute top-8 right-8">
-  <button
-    onClick={handleGoogleLogin}
-    className="
-      flex items-center gap-2
-      bg-white
-      border border-[#e7e7ff]
-      px-4 py-2
-      rounded-xl
-      shadow-sm
-      hover:shadow-md
-      transition
-    "
-  >
-    <FcGoogle size={20} />
-   <span>
-  {loggedIn
-    ? "Signed In"
-    : "Sign in"}
-</span>
-  </button>
+
+<div className="mt-auto pt-4 border-t border-[#dfe0ff]">
+
+  {user ? (
+
+    <div>
+      <div
+        className={`flex mt-6 mb-10 ${
+          sidebarOpen
+            ? "items-center gap-4"
+            : "justify-center"
+        }`}
+      >
+        <img
+          src={user.photoURL}
+          alt=""
+          className="w-10 h-10 rounded-full"
+        />
+
+        {sidebarOpen && (
+          <div>
+            <p className="font-semibold text-sm">
+              {user.displayName}
+            </p>
+
+            <p className="text-xs text-gray-500 truncate">
+              {user.email}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {sidebarOpen && (
+        <button
+          onClick={handleLogout}
+          className="mt-3 w-full py-2 rounded-xl bg-red-100 hover:bg-red-200"
+        >
+          Logout
+        </button>
+      )}
+    </div>
+
+  ) : (
+
+    <button
+      onClick={handleGoogleLogin}
+      className="w-full flex items-center justify-center gap-2 bg-white border border-[#dfe0ff] py-3 rounded-xl"
+    >
+      <FcGoogle size={20} />
+      {sidebarOpen && <span>Sign In</span>}
+    </button>
+  )}
+  </div>
 </div>
+ {/* menu */}
+
+   <div className="flex-1 p-10 overflow-y-auto relative">
         {page !== "home" ? (
           renderPage()
         ) : (
           <>
-<div className="text-center mt-10">
-  {/* Badge */}
-  <div
-    className="
-      inline-flex
-      items-center
-      gap-2
-      px-6
-      py-3
-      rounded-full
-      border
-      border-[#cfcfff]
-      text-[#8b8cff]
-      bg-white/40
-      backdrop-blur-sm
-    "
-  >
-    ✨ AI-Powered Prompt Engineering
+<div className="text-center mt-1">
+  <div className="flex justify-center mb-4">
+    <Sparkles
+  size={28}
+  className="text-[#ff9ed2] drop-shadow-[0_0_8px_#ff9ed2]"
+/>
   </div>
 
-  {/* Heading */}
   <h1
+  className="
+    mt-6
+    text-6xl
+    font-extrabold
+    leading-none
+    text-[#1f1f2e]
+  "
+>
+  Craft Perfect Prompts
+  <br />
+
+  with{" "}
+  <span
     className="
-      mt-10
-      text-2xl
-      md:text-4xl
-      font-extrabold
-      leading-none
-      text-[#1f1f2e]
+      bg-gradient-to-r
+      from-[#7f8cff]
+      via-[#c8a0ff]
+      to-[#ffb3d9]
+      bg-clip-text
+      text-transparent
     "
   >
-    Craft Perfect Prompts
-    <br />
+    ContextPrompt AI
+  </span>
+</h1>
 
-    with{" "}
-    <span
-      className="
-        bg-gradient-to-r
-        from-[#7f8cff]
-        via-[#c8a0ff]
-        to-[#ffb3d9]
-        bg-clip-text
-        text-transparent
-      "
-    >
-      ContextPrompt AI
-    </span>
-  </h1>
-
-  {/* Description */}
   <p
     className="
-      max-w-4xl
+      max-w-2xl
       mx-auto
-      mt-8
-      text-1xl
-      text-gray-500
+      mt-5
+      text-lg
+      font-light
+      text-gray-600
     "
   >
-    Generate powerful, effective AI prompts tailored to your needs.
-    Save your history and refine your prompt engineering skills.
+    Turn ideas into professional, creative, and expert-level prompts
+    instantly. Designed for students, creators, developers, and
+    professionals.
   </p>
-
+</div>
   {/* Feature Pills */}
 <div className="flex flex-wrap justify-center gap-4 mt-8">
 
@@ -548,39 +649,77 @@ if (page === "templates") {
   </div>
 
 </div>
-
-</div>
- <div className="max-w-xl mx-auto mt-16">
+ <div className="max-w-4xl mx-auto mt-16 px-4">
   <div
-    className="
-      bg-white/70
-      backdrop-blur-xl
-      border border-white/20
-      shadow-2xl
-      rounded-3xl
-      p-6
-    "
-  >
+  className="
+    max-w-3xl
+    mx-auto
+    mt-16
+    bg-white/70
+    backdrop-blur-xl
+    border border-[#dfe0ff]
+    rounded-3xl
+    p-8
+    shadow-xl
+  "
+>
+  <div className="flex items-center gap-2 mb-2">
+  <Sparkles
+    size={24}
+    className="text-[#8f8cff]"
+  />
+
+  <h2 className="text-3xl font-light tracking-tight">
+    Create Your Prompt
+  </h2>
+</div>
+  <p className="text-gray-500 text-base font-light leading-relaxed">
+  Describe what you want to achieve and we'll craft
+  the perfect prompt
+</p>
+
+  {/* Prompt Input */}
+  <div className="mb-6">
+<label className="text-sm font-medium text-gray-600">
+  What do you want to create?
+</label>
+
     <textarea
       value={input}
       onChange={(e) => setInput(e.target.value)}
       rows={6}
-      placeholder="Describe your idea..."
-      className="w-full bg-transparent outline-none resize-none text-lg"
+      placeholder="E.g., A blog post about sustainable living tips..."
+      className="
+        w-full
+        rounded-2xl
+        border border-[#dfe0ff]
+        p-4
+        bg-white
+        outline-none
+        focus:ring-2
+        focus:ring-[#8f8cff]
+      "
     />
-
-    <div className="flex justify-end mt-3">
-      <button
-        onClick={generatePrompt}
-        className="px-6 py-3 rounded-xl bg-[#b8b7f3]
-hover:bg-[#a8a7ef]
-text-white font-semibold"
-      >
-        ✨ Generate
-      </button>
-    </div>
   </div>
+
+
+  <button
+  onClick={generatePrompt}
+  className="
+    flex items-center justify-center gap-2
+    w-full py-4 rounded-2xl
+    bg-gradient-to-r
+    from-[#8f8cff]
+    to-[#6f72ff]
+    text-white font-medium
+  "
+>
+
+  <WandSparkles size={20} />
+  Generate Prompt
+</button>
 </div>
+  </div>
 
           {result.length > 0 && (
   <div className="max-w-5xl mx-auto mt-10">
@@ -599,9 +738,30 @@ shadow-lg
 "
     >
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">
-          {item.title}
-        </h2>
+        <h2 className="text-2xl font-medium flex items-center gap-2">
+  {item.title.includes("Professional") && (
+    <BriefcaseBusiness
+      size={22}
+      className="text-[#8f8cff]"
+    />
+  )}
+
+  {item.title.includes("Creative") && (
+    <WandSparkles
+      size={22}
+      className="text-[#8f8cff]"
+    />
+  )}
+
+  {item.title.includes("Expert") && (
+    <Brain
+      size={22}
+      className="text-[#8f8cff]"
+    />
+  )}
+
+  {item.title}
+</h2>
 
 <button
   onClick={() => copyPrompt(item.text, index)}
@@ -619,12 +779,12 @@ shadow-lg
   ))}
 </div>
 
-  </div>
-)}
-</>
 
-        )}
-        </div>
-        </div>
-  )}
-  
+</div>
+    )}
+        </>
+    )}
+  </div>
+  </div>
+);
+}

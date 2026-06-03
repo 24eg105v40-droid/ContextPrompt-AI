@@ -1,3 +1,5 @@
+from unittest import result
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -27,7 +29,6 @@ client = Groq(
 )
 
 # MONGODB CONNECTION
-# MONGODB CONNECTION
 mongo = MongoClient(
     os.getenv("MONGO_URI"),
     tls=True,
@@ -42,6 +43,7 @@ collection = db["prompts"]
 class PromptRequest(BaseModel):
     prompt: str
     category: str
+    email: str
 
 # GENERATE ROUTE
 @app.post("/generate")
@@ -69,6 +71,7 @@ Return clean readable prompts.
     result = completion.choices[0].message.content
 
     prompt_data = {
+        "email": data.email,
         "prompt": data.prompt,
         "category": data.category,
         "result": result
@@ -87,3 +90,15 @@ Return clean readable prompts.
             }
         ]
     }
+
+    @app.get("/history/{email}")
+    async def get_history(email: str):
+
+        history = list(
+            collection.find(
+                {"email": email},
+                {"_id": 0}
+            )
+        )
+
+        return history
