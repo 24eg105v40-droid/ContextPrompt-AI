@@ -1,5 +1,7 @@
 import { Copy } from "lucide-react";
 import { WandSparkles } from "lucide-react";
+import { Star } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import {
   Sparkles,
   History,
@@ -28,27 +30,28 @@ export default function App() {
   const [promptType, setPromptType] = useState("general");
 const [tone, setTone] = useState("professional");
   const [result, setResult] = useState([]);
-const getIcon = (index) => {
-  const icons = [
-    <Zap size={22} className="text-yellow-500" />,
-    <Target size={22} className="text-blue-500" />,
-    <Brain size={22} className="text-purple-500" />,
-  ];
+const getIcon = (title) => {
+  const iconMap = {
+    "Quick Prompt": <Zap size={22} className="text-yellow-500" />,
+    "Detailed Prompt": <Target size={22} className="text-blue-500" />,
+    "Expert Prompt": <Brain size={22} className="text-purple-500" />,
+  };
 
-  return icons[index % icons.length];
+  return iconMap[title] || <Zap size={22} className="text-gray-400" />;
 };
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [saved, setSaved] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(null);
 const copyPrompt = async (text, index) => {
-  await navigator.clipboard.writeText(text);
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
 
-  setCopiedIndex(index);
-
-  setTimeout(() => {
-    setCopiedIndex(null);
-  }, 2000);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  } catch (err) {
+    console.error("Copy failed", err);
+  }
 };
 const handleGoogleLogin = async () => {
   try {
@@ -79,31 +82,17 @@ useEffect(() => {
   }
 }, []);
 useEffect(() => {
-  const unsubscribe = onAuthStateChanged(
-    auth,
-    (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        setUser(null);
-      }
-    }
-  );
-
+  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+  });
 
   return () => unsubscribe();
 }, []);
   const [history, setHistory] = useState([]);
-const [savedPrompts, setSavedPrompts]=
-  useState([]);
-  useEffect(() => {
-  const prompts =
-    JSON.parse(
-      localStorage.getItem("savedPrompts")
-    ) || [];
+const [savedPrompts, setSavedPrompts] = useState(() => {
+  return JSON.parse(localStorage.getItem("savedPrompts")) || [];
+});
 
-  setSavedPrompts(prompts);
-}, []);
   const [page, setPage] = useState("home");
 
   useEffect(() => {
@@ -115,7 +104,28 @@ const [savedPrompts, setSavedPrompts]=
   setHistory(savedHistory);
 }, []);
 
+const saveSinglePrompt = (prompt) => {
+  const updated = [...savedPrompts, prompt];
 
+  setSavedPrompts(updated);
+
+  localStorage.setItem(
+    "savedPrompts",
+    JSON.stringify(updated)
+  );
+};
+
+const deleteSavedPrompt = (index) => {
+  const updated = savedPrompts.filter(
+    (_, i) => i !== index
+  );
+
+  setSavedPrompts(updated);
+  localStorage.setItem(
+    "savedPrompts",
+    JSON.stringify(updated)
+  );
+};
   const exploreItems = [
   {
     title: "📚 Study Notes",
@@ -236,88 +246,39 @@ const generatePrompt = async () => {
   setLoading(true);
 
   try {
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            {
-              role: "user",
-content: `You are a prompt engineering expert.
-
-Generate 3 different AI prompts based on:
-
-Topic: ${input}
-Type: ${promptType}
-Tone: ${tone}
-
-Return format:
-
-### Prompt 1
-[prompt]
-
-### Prompt 2
-[prompt]
-
-### Prompt 3
-[prompt]
-
-Each prompt should have a different approach and structure.`
-            },
-          ],
-        }),
-      }
-    );
+    const response = await fetch("http://localhost:8000/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+  body: JSON.stringify({
+  prompt: input,
+  category: promptType,
+  tone: tone,
+  email: user?.email || "guest",
+}),
+    });
 
     const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content || "";
 
-    const cleanText = text.replace(/```/g, "").trim();
+    setResult(data.prompts || []);
 
-   const sections = cleanText
-  .split("###")
-  .map((s) => s.trim())
-  .filter(Boolean);
+    const updatedHistory = [
+      {
+        id: crypto.randomUUID(),
+        text: input,
+        timestamp: Date.now(),
+        type: "generate",
+        resultCount: data.prompts?.length || 0,
+      },
+      ...history,
+    ];
 
-const promptTitles = [
-  "Quick Prompt",
-  "Detailed Prompt",
-  "Expert Prompt",
-];
+    setHistory(updatedHistory);
+    localStorage.setItem("history", JSON.stringify(updatedHistory));
 
-const prompts = sections.map((section, index) => {
-  const lines = section.split("\n").filter(Boolean);
-
-  return {
-    title: promptTitles[index] || "Generated Prompt",
-    text: lines.slice(1).join("\n").trim(),
-  };
-});
-
-setResult(prompts);
-
- const updatedHistory = [
-{
-  id: crypto.randomUUID(),
-  text: input,
-  timestamp: Date.now(),
-  type: "generate",
-  resultCount: 1
-},
-  ...history
-];
-
-setHistory(updatedHistory);
-localStorage.setItem("history", JSON.stringify(updatedHistory));
-
-}catch (err) {
-    console.error(err);
+  } catch (err) {
+    console.error("Error:", err);
   }
 
   setLoading(false);
@@ -338,9 +299,13 @@ const getLast7Days = () => {
 const usageData = getLast7Days();
 
 const mostActiveDay =
-  usageData.length > 0
-    ? usageData.sort((a, b) => b[1] - a[1])[0]
-    : null;
+  Object.entries(
+    history.reduce((acc, h) => {
+      const d = new Date(h.timestamp).toDateString();
+      acc[d] = (acc[d] || 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1])[0];
 
 const avgUsage =
   history.length
@@ -467,24 +432,42 @@ const handleLogout = async () => {
     );
   }
 
-  if (page === "saved") {
-    return (
-      <div>
-        <h2 className="text-4xl font-bold mb-6">Saved Prompts</h2>
+if (page === "saved") {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-4xl font-bold">
+          Saved Prompts
+        </h2>
 
-        {savedPrompts.length === 0 ? (
-          <p>No saved prompts yet.</p>
-        ) : (
-          savedPrompts.map((item, index) => (
-            <div key={index} className="bg-white/10 p-5 rounded-3xl mb-4">
-              {item.text}
-            </div>
-          ))
-        )}
+        <button
+          onClick={() => {
+            localStorage.removeItem("savedPrompts");
+            setSavedPrompts([]);
+          }}
+          className="
+            px-4 py-2
+            rounded-xl
+            bg-red-50
+            text-red-600
+            hover:bg-red-100
+          "
+        >
+          Delete All
+        </button>
       </div>
-    );
-  }
 
+      {savedPrompts.map((item, index) => (
+        <div
+          key={index}
+          className="bg-white/70 p-5 rounded-3xl mb-4"
+        >
+          {item.text || item.prompt || JSON.stringify(item)}
+        </div>
+      ))}
+    </div>
+  );
+}
   return null;
 };
 
@@ -505,7 +488,7 @@ style={{
 
  <div
   className={`
-    ${sidebarOpen ? "w-65" : "w-20"}
+    ${sidebarOpen ? "w-64" : "w-20"}
     transition-all duration-300
     border-r border-[#dfe0ff]
     p-4
@@ -574,6 +557,23 @@ style={{
   📊
   {sidebarOpen && <span>Analytics</span>}
 </button>
+<button
+  onClick={() => setPage("saved")}
+  className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/20"
+>
+  <div className="flex items-center gap-3">
+    <Bookmark size={18} />
+    {sidebarOpen && <span>Saved</span>}
+  </div>
+
+  {savedPrompts.length > 0 && (
+    <span className="bg-[#8f8cff] text-white text-xs px-2 py-1 rounded-full">
+      {savedPrompts.length}
+    </span>
+  )}
+</button>
+
+
     {/* Recent */}
 {sidebarOpen && (
   <div className="flex-1 min-h-0 flex flex-col mt-6">
@@ -931,24 +931,42 @@ rounded-3xl
 shadow-lg
 "
     >
+        
+        
       <div className="flex justify-between items-center mb-4">
   <h2 className="text-2xl font-medium flex items-center gap-2">
-  {getIcon(index)}
+{getIcon(item.title)}
   {item.title}
 </h2>
+<div className="flex items-center gap-2">
+  <button
+    onClick={() => saveSinglePrompt(item)}
+    className="
+      flex items-center gap-1
+      px-4 py-2
+      rounded-xl
+      border border-[#dfe0ff]
+      hover:bg-yellow-50
+      transition
+    "
+  >
+    <Star size={18} className="text-yellow-500" />
+    Save
+  </button>
 
-<button
-  onClick={() => copyPrompt(item.text, index)}
-  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all
-    ${
-      copiedIndex === index
-        ? "border-green-400 shadow-lg shadow-green-200 bg-green-50"
-        : "border-[#dfe0ff] bg-white/10 hover:bg-white/20"
-    }`}
->
-  <Copy size={18} />
-  {copiedIndex === index ? "Copied!" : "Copy"}
-</button>
+  <button
+    onClick={() => copyPrompt(item.text, index)}
+    className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all
+      ${
+        copiedIndex === index
+          ? "border-green-400 shadow-lg shadow-green-200 bg-green-50"
+          : "border-[#dfe0ff] bg-white/10 hover:bg-white/20"
+      }`}
+  >
+    <Copy size={18} />
+    {copiedIndex === index ? "Copied!" : "Copy"}
+  </button>
+</div>
       </div>
 
       <div className="whitespace-pre-wrap">
