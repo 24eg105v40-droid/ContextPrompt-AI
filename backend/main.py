@@ -1,35 +1,29 @@
 import os
 import re
-print("ENV CHECK:", os.path.exists(".env"))
-print("KEY CHECK:", os.getenv("GROQ_API_KEY"))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
-from pymongo import MongoClient
-
-# LOAD ENV
 from dotenv import load_dotenv
 from pathlib import Path
-import os
 
+# ---------------- ENV ----------------
 env_path = Path(__file__).parent / ".env"
-
 load_dotenv(dotenv_path=env_path)
 
-print("ENV PATH:", env_path)
-print("ENV EXISTS:", env_path.exists())
-print("GROQ KEY LOADED:", bool(os.getenv("GROQ_API_KEY")))
-print("RAW KEY:", repr(os.getenv("GROQ_API_KEY")))
+api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    raise Exception("GROQ_API_KEY missing")
 
+client = Groq(api_key=api_key)
+
+# ---------------- APP ----------------
 app = FastAPI()
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+@app.get("/")
+def home():
+    return {"status": "Backend is running 🚀"}
 
-app = FastAPI()
-
-# 👇 MUST BE IMMEDIATELY AFTER app creation
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
