@@ -16,7 +16,6 @@ import os
 env_path = Path(__file__).parent / ".env"
 
 load_dotenv(dotenv_path=env_path)
-
 print("ENV PATH:", env_path)
 print("ENV EXISTS:", env_path.exists())
 print("GROQ KEY LOADED:", bool(os.getenv("GROQ_API_KEY")))
@@ -50,7 +49,6 @@ if not api_key:
     raise Exception("GROQ_API_KEY missing in .env")
 
 client = Groq(api_key=api_key)
-
 
 # REQUEST MODEL
 class PromptRequest(BaseModel):

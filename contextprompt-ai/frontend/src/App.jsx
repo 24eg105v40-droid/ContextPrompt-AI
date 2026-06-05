@@ -2,28 +2,16 @@ import { Copy } from "lucide-react";
 import { WandSparkles } from "lucide-react";
 import { Star } from "lucide-react";
 import { Bookmark } from "lucide-react";
-import {
-  Sparkles,
-  History,
-  Zap,
-} from "lucide-react";
+import { Sparkles, History, Zap } from "lucide-react";
 import { Trash2 } from "lucide-react";
-
-import {
-  Target,
-  Brain,
-} from "lucide-react";
+import { Target, Brain } from "lucide-react";
 import { Stars } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
-import { signInWithPopup } from "firebase/auth";
-import { auth, provider } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import { useState, useEffect } from "react";
-import { signOut } from "firebase/auth";
 import {
-  BriefcaseBusiness,
-} from "lucide-react";
-
+  BriefcaseBusiness } from "lucide-react";
+import { auth, provider } from "./firebase";
 export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,11 +19,11 @@ export default function App() {
 const [tone, setTone] = useState("professional");
   const [result, setResult] = useState([]);
 const getIcon = (title) => {
-  const iconMap = {
-    "Quick Prompt": <Zap size={22} className="text-yellow-500" />,
-    "Detailed Prompt": <Target size={22} className="text-blue-500" />,
-    "Expert Prompt": <Brain size={22} className="text-purple-500" />,
-  };
+const iconMap = {
+  quick: <Zap size={22} />,
+  detailed: <Target size={22} />,
+  expert: <Brain size={22} />,
+};
 
   return iconMap[title] || <Zap size={22} className="text-gray-400" />;
 };
@@ -944,8 +932,9 @@ shadow-lg
         
       <div className="flex justify-between items-center mb-4">
   <h2 className="text-2xl font-medium flex items-center gap-2">
-{getIcon(item.title)}
-  {item.title}
+<div className="flex items-center gap-2">
+  <span>{item.title}</span>
+</div>
 </h2>
 <div className="flex items-center gap-2">
   <button
