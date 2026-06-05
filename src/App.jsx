@@ -92,16 +92,6 @@ useEffect(() => {
 const [savedPrompts, setSavedPrompts] = useState(() => {
   return JSON.parse(localStorage.getItem("savedPrompts")) || [];
 });
-const updatedHistory = [
-  {
-    id: crypto.randomUUID(),
-    text: input,
-    timestamp: Date.now(),
-    type: "generate",
-    resultCount: data.prompts?.length || 0,
-  },
-  ...history,
-];
   const [page, setPage] = useState("home");
 
   useEffect(() => {
@@ -253,11 +243,9 @@ const generatePrompt = async () => {
   try {
     setLoading(true);
 
-    const API_URL =
-      import.meta.env.VITE_API_URL ||
-      "https://contextprompt-ai-1.onrender.com";
+    const API_URL = import.meta.env.VITE_API_URL;
 
-    const response = await fetch(`${API_URL}/generate`, {
+const response = await fetch(`${API_URL}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -268,7 +256,7 @@ const generatePrompt = async () => {
       }),
     });
 
-    const data = await response.json(); // ✅ ONLY HERE
+    const data = await response.json(); 
 
     console.log("DATA:", data);
 
@@ -403,6 +391,9 @@ const handleLogout = async () => {
 }
   if (page === "explore") {
     return (
+      <div>
+        <h1 className="text-5xl font-bold mb-8">Explore 🔎</h1>
+
       <div className="grid md:grid-cols-2 gap-4">
         {exploreItems.map((item, index) => (
           <button
@@ -417,6 +408,7 @@ const handleLogout = async () => {
             <p className="opacity-70 text-sm mt-2">Discover ideas</p>
           </button>
         ))}
+      </div>
       </div>
     );
   }

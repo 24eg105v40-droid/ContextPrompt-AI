@@ -22,7 +22,6 @@ print("ENV EXISTS:", env_path.exists())
 print("GROQ KEY LOADED:", bool(os.getenv("GROQ_API_KEY")))
 print("RAW KEY:", repr(os.getenv("GROQ_API_KEY")))
 
-app = FastAPI()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
