@@ -477,7 +477,7 @@ if (page === "saved") {
   return (
 
 <div
-  className="min-h-screen flex text-[#1f1f2e] bg-[#faf9ff]"
+  className="min-h-screen flex flex-col md:flex-row text-[#1f1f2e] bg-[#faf9ff]"
 style={{
   backgroundColor: "#f8fbff",
   backgroundImage: `
@@ -491,7 +491,7 @@ style={{
 
  <div
   className={`
-    ${sidebarOpen ? "w-64" : "w-20"}
+    ${sidebarOpen ? "fixed md:relative w-64 md:w-64" : "w-20"}
     transition-all duration-300
     border-r border-[#dfe0ff]
     p-4
@@ -502,6 +502,7 @@ style={{
   `}
 >
 <div className="mb-8 flex justify-start">
+    <button className="md:hidden">☰</button>
 <button
   onClick={() => setSidebarOpen(!sidebarOpen)}
   className="
@@ -669,7 +670,7 @@ style={{
 </div>
  {/* menu */}
 
-   <div className="flex-1 p-10 overflow-y-auto relative">
+   <div className="flex-1 p-4 md:p-10 overflow-y-auto relative">
         {page !== "home" ? (
           renderPage()
         ) : (
@@ -711,7 +712,7 @@ style={{
   <h1
   className="
     mt-6
-    text-6xl
+    text-3xl md:text-6xl
     font-extrabold
     leading-none
     text-[#1f1f2e]
@@ -778,7 +779,7 @@ style={{
   </div>
 
 </div>
- <div className="max-w-4xl mx-auto mt-16 px-4">
+ <div className="max-w-full md:max-w-4xl mx-auto mt-16 px-4">
   <div
   className="
     max-w-3xl
