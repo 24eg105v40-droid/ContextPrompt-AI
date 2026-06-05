@@ -92,7 +92,16 @@ useEffect(() => {
 const [savedPrompts, setSavedPrompts] = useState(() => {
   return JSON.parse(localStorage.getItem("savedPrompts")) || [];
 });
-
+const updatedHistory = [
+  {
+    id: crypto.randomUUID(),
+    text: input,
+    timestamp: Date.now(),
+    type: "generate",
+    resultCount: data.prompts?.length || 0,
+  },
+  ...history,
+];
   const [page, setPage] = useState("home");
 
   useEffect(() => {
@@ -244,11 +253,9 @@ const generatePrompt = async () => {
   try {
     setLoading(true);
 
-  const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://contextprompt-ai-1.onrender.com";
-
-    console.log("API_URL =", API_URL);
+    const API_URL =
+      import.meta.env.VITE_API_URL ||
+      "https://contextprompt-ai-1.onrender.com";
 
     const response = await fetch(`${API_URL}/generate`, {
       method: "POST",
@@ -261,13 +268,31 @@ const generatePrompt = async () => {
       }),
     });
 
-    const data = await response.json();
-    console.log("Response:", data);
+    const data = await response.json(); // ✅ ONLY HERE
 
-    setResult(data.prompts || []);
+    console.log("DATA:", data);
+
+    const prompts = data.prompts || [];
+
+    setResult(prompts);
+
+    setHistory((prev) => {
+      const updated = [
+        {
+          id: crypto.randomUUID(),
+          text: input,
+          timestamp: Date.now(),
+          type: "generate",
+        },
+        ...prev,
+      ];
+
+      localStorage.setItem("history", JSON.stringify(updated));
+      return updated;
+    });
 
   } catch (err) {
-    console.error("Generate error:", err);
+    console.error(err);
   } finally {
     setLoading(false);
   }
