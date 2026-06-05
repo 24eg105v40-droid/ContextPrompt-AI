@@ -237,7 +237,7 @@ const generatePrompt = async () => {
 
   try {
     const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
+      "https://contextprompt-ai.onrender.com/generate",
       {
         method: "POST",
         headers: {
