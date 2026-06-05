@@ -1,51 +1,62 @@
-from unittest import result
-
+import os
+import re
+print("ENV CHECK:", os.path.exists(".env"))
+print("KEY CHECK:", os.getenv("GROQ_API_KEY"))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
 from pymongo import MongoClient
-from dotenv import load_dotenv
-import os
 
 # LOAD ENV
-load_dotenv()
+from dotenv import load_dotenv
+from pathlib import Path
+import os
 
-# FASTAPI
+env_path = Path(__file__).parent / ".env"
+
+load_dotenv(dotenv_path=env_path)
+
+print("ENV PATH:", env_path)
+print("ENV EXISTS:", env_path.exists())
+print("GROQ KEY LOADED:", bool(os.getenv("GROQ_API_KEY")))
+print("RAW KEY:", repr(os.getenv("GROQ_API_KEY")))
+
 app = FastAPI()
 
-# CORS
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# 👇 MUST BE IMMEDIATELY AFTER app creation
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # GROQ CLIENT
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+api_key = os.getenv("GROQ_API_KEY")
 
-# MONGODB CONNECTION
-mongo = MongoClient(
-    os.getenv("MONGO_URI"),
-    tls=True,
-    tlsAllowInvalidCertificates=True
-)
+if not api_key:
+    raise Exception("GROQ_API_KEY missing in .env")
 
-db = mongo["contextpromptai"]
+client = Groq(api_key=api_key)
 
-collection = db["prompts"]
 
 # REQUEST MODEL
 class PromptRequest(BaseModel):
     prompt: str
     category: str
     email: str
+    tone: str
 
+# -----------------------
 # GENERATE ROUTE
+# -----------------------
 @app.post("/generate")
 async def generate(data: PromptRequest):
 
@@ -55,14 +66,51 @@ async def generate(data: PromptRequest):
             {
                 "role": "user",
                 "content": f"""
-Generate 3 high-quality AI prompts for:
+You are a world-class prompt engineer.
 
-{data.prompt}
+Generate 3 HIGH-QUALITY prompts for the following request.
 
-Category:
-{data.category}
+Topic: {data.prompt}
+Category: {data.category}
+Tone: {data.tone}
 
-Return clean readable prompts.
+Requirements:
+
+Prompt 1 = Quick Prompt
+- Concise but complete
+- Include a role
+- Include the main objective
+- Include 2-3 key requirements
+- Ready to use immediately
+
+Prompt 2 = Detailed Prompt
+- Include role
+- Include context
+- Include clear instructions
+- Include expected output
+
+Prompt 3 = Expert Prompt
+- Advanced prompt engineering
+- Include role, objective, constraints
+- Include step-by-step reasoning
+- Include output format
+- Maximize response quality
+
+Each prompt must be significantly different.
+
+Return exactly:
+
+Prompt 1
+[prompt]
+
+Prompt 2
+[prompt]
+
+Prompt 3
+[prompt]
+
+Do not explain anything.
+Only return the prompts.
 """
             }
         ]
@@ -70,35 +118,37 @@ Return clean readable prompts.
 
     result = completion.choices[0].message.content
 
-    prompt_data = {
-        "email": data.email,
-        "prompt": data.prompt,
-        "category": data.category,
-        "result": result
-    }
+    # ✅ MUST BE INSIDE FUNCTION
+    quick = ""
+    detailed = ""
+    expert = ""
 
-    # SAVE TO DATABASE
-    collection.insert_one(prompt_data)
+    quick_match = re.search(r"Prompt 1\s*(.*?)(?=Prompt 2)", result, re.S)
+    detailed_match = re.search(r"Prompt 2\s*(.*?)(?=Prompt 3)", result, re.S)
+    expert_match = re.search(r"Prompt 3\s*(.*)", result, re.S)
+
+    if quick_match:
+        quick = quick_match.group(1).strip()
+
+    if detailed_match:
+        detailed = detailed_match.group(1).strip()
+
+    if expert_match:
+        expert = expert_match.group(1).strip()
 
     return {
         "prompts": [
             {
-                "id": 1,
-                "label": "AI Generated",
-                "color": "mint",
-                "text": result
+                "title": "Quick Prompt",
+                "text": quick
+            },
+            {
+                "title": "Detailed Prompt",
+                "text": detailed
+            },
+            {
+                "title": "Expert Prompt",
+                "text": expert
             }
         ]
     }
-
-    @app.get("/history/{email}")
-    async def get_history(email: str):
-
-        history = list(
-            collection.find(
-                {"email": email},
-                {"_id": 0}
-            )
-        )
-
-        return history

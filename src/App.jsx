@@ -246,19 +246,21 @@ const generatePrompt = async () => {
   setLoading(true);
 
   try {
-    const response = await fetch("http://localhost:8000/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-  body: JSON.stringify({
-  prompt: input,
-  category: promptType,
-  tone: tone,
-  email: user?.email || "guest",
-}),
-    });
-
+   const response = await fetch(
+  "https://contextprompt-ai-1.onrender.com/generate",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt: input,
+      category: promptType,
+      tone: tone,
+      email: user?.email || "guest",
+    }),
+  }
+);
     const data = await response.json();
 
     setResult(data.prompts || []);
@@ -283,6 +285,7 @@ const generatePrompt = async () => {
 
   setLoading(false);
 };
+
 const totalPrompts = history.length;
 
 const getLast7Days = () => {
