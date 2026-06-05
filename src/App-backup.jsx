@@ -30,35 +30,28 @@ export default function App() {
   const [promptType, setPromptType] = useState("general");
 const [tone, setTone] = useState("professional");
   const [result, setResult] = useState([]);
-const iconMap = {
-  "Prompt 1": Zap,
-  "Prompt 2": Target,
-  "Prompt 3": Brain,
-};
-const iconList = [
-  { icon: Zap, color: "text-yellow-500" },
-  { icon: Target, color: "text-blue-500" },
-  { icon: Brain, color: "text-purple-500" },
-];
+const getIcon = (title) => {
+  const iconMap = {
+    "Quick Prompt": <Zap size={22} className="text-yellow-500" />,
+    "Detailed Prompt": <Target size={22} className="text-blue-500" />,
+    "Expert Prompt": <Brain size={22} className="text-purple-500" />,
+  };
 
-const getIcon = (index) => {
-  const item = iconList[index % iconList.length];
-  const Icon = item.icon;
-
-  return <Icon size={22} className={item.color} />;
+  return iconMap[title] || <Zap size={22} className="text-gray-400" />;
 };
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [saved, setSaved] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(null);
 const copyPrompt = async (text, index) => {
-  await navigator.clipboard.writeText(text);
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
 
-  setCopiedIndex(index);
-
-  setTimeout(() => {
-    setCopiedIndex(null);
-  }, 2000);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  } catch (err) {
+    console.error("Copy failed", err);
+  }
 };
 const handleGoogleLogin = async () => {
   try {
@@ -89,31 +82,17 @@ useEffect(() => {
   }
 }, []);
 useEffect(() => {
-  const unsubscribe = onAuthStateChanged(
-    auth,
-    (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-      } else {
-        setUser(null);
-      }
-    }
-  );
-
+  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+  });
 
   return () => unsubscribe();
 }, []);
   const [history, setHistory] = useState([]);
-const [savedPrompts, setSavedPrompts]=
-  useState([]);
-  useEffect(() => {
-  const prompts =
-    JSON.parse(
-      localStorage.getItem("savedPrompts")
-    ) || [];
+const [savedPrompts, setSavedPrompts] = useState(() => {
+  return JSON.parse(localStorage.getItem("savedPrompts")) || [];
+});
 
-  setSavedPrompts(prompts);
-}, []);
   const [page, setPage] = useState("home");
 
   useEffect(() => {
@@ -135,18 +114,7 @@ const saveSinglePrompt = (prompt) => {
     JSON.stringify(updated)
   );
 };
-const deletePrompt = (index) => {
-  const updated = savedPrompts.filter(
-    (_, i) => i !== index
-  );
 
-  setSavedPrompts(updated);
-
-  localStorage.setItem(
-    "savedPrompts",
-    JSON.stringify(updated)
-  );
-};
 const deleteSavedPrompt = (index) => {
   const updated = savedPrompts.filter(
     (_, i) => i !== index
@@ -278,118 +246,47 @@ const generatePrompt = async () => {
   setLoading(true);
 
   try {
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.1-8b-instant",
-          messages: [
-            {
-              role: "user",
-content: `You are a world-class prompt engineer.
-
-Generate 3 HIGH-QUALITY prompts for the following request.
-
-Topic: ${input}
-Category: ${promptType}
-Tone: ${tone}
-
-Requirements:
-
-Prompt 1 = Quick Prompt
-- Concise but complete
-- Include a role
-- Include the main objective
-- Include 2-3 key requirements
-- Ready to use immediately
-
-
-Prompt 2 = Detailed Prompt
-- Include role
-- Include context
-- Include clear instructions
-- Include expected output
-
-Prompt 3 = Expert Prompt
-- Advanced prompt engineering
-- Include role, objective, constraints
-- Include step-by-step reasoning
-- Include output format
-- Maximize response quality
-
-Each prompt must be significantly different.
-
-Return exactly:
-
-### Prompt 1
-[prompt]
-
-### Prompt 2
-[prompt]
-
-### Prompt 3
-[prompt]
-
-Do not explain anything.
-Only return the prompts.`
-            },
-          ],
-        }),
-      }
-    );
-
+   const response = await fetch(
+  "https://contextprompt-ai-1.onrender.com/generate",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      prompt: input,
+      category: promptType,
+      tone: tone,
+      email: user?.email || "guest",
+    }),
+  }
+);
     const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content || "";
 
-    const cleanText = text.replace(/```/g, "").trim();
+    setResult(data.prompts || []);
 
-   const sections = cleanText
-  .split("###")
-  .map((s) => s.trim())
-  .filter(Boolean);
+    const updatedHistory = [
+      {
+        id: crypto.randomUUID(),
+        text: input,
+        timestamp: Date.now(),
+        type: "generate",
+        resultCount: data.prompts?.length || 0,
+      },
+      ...history,
+    ];
 
-const promptTitles = [
-  "Quick Prompt",
-  "Detailed Prompt",
-  "Expert Prompt",
-];
+    setHistory(updatedHistory);
+    localStorage.setItem("history", JSON.stringify(updatedHistory));
 
-const prompts = sections.map((section, index) => {
-  const lines = section.split("\n").filter(Boolean);
-
-  return {
-    title: promptTitles[index] || "Generated Prompt",
-    text: lines.slice(1).join("\n").trim(),
-  };
-});
-
-setResult(prompts);
-
- const updatedHistory = [
-{
-  id: crypto.randomUUID(),
-  text: input,
-  timestamp: Date.now(),
-  type: "generate",
-  resultCount: 1
-},
-  ...history
-];
-
-setHistory(updatedHistory);
-localStorage.setItem("history", JSON.stringify(updatedHistory));
-
-}catch (err) {
-    console.error(err);
+  } catch (err) {
+    console.error("Error:", err);
   }
 
   setLoading(false);
 };
+
+
 const totalPrompts = history.length;
 
 const getLast7Days = () => {
@@ -406,9 +303,13 @@ const getLast7Days = () => {
 const usageData = getLast7Days();
 
 const mostActiveDay =
-  usageData.length > 0
-    ? usageData.sort((a, b) => b[1] - a[1])[0]
-    : null;
+  Object.entries(
+    history.reduce((acc, h) => {
+      const d = new Date(h.timestamp).toDateString();
+      acc[d] = (acc[d] || 0) + 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1])[0];
 
 const avgUsage =
   history.length
@@ -565,7 +466,7 @@ if (page === "saved") {
           key={index}
           className="bg-white/70 p-5 rounded-3xl mb-4"
         >
-          {item.text}
+          {item.text || item.prompt || JSON.stringify(item)}
         </div>
       ))}
     </div>
@@ -591,7 +492,7 @@ style={{
 
  <div
   className={`
-    ${sidebarOpen ? "w-65" : "w-20"}
+    ${sidebarOpen ? "w-64" : "w-20"}
     transition-all duration-300
     border-r border-[#dfe0ff]
     p-4
@@ -1034,12 +935,11 @@ rounded-3xl
 shadow-lg
 "
     >
+        
+        
       <div className="flex justify-between items-center mb-4">
-<h2 className="text-2xl font-medium flex items-center gap-2">
-  {(() => {
-    const Icon = iconMap[item.title] || Zap;
-    return <Icon size={22} className="text-purple-500" />;
-  })()}
+  <h2 className="text-2xl font-medium flex items-center gap-2">
+{getIcon(item.title)}
   {item.title}
 </h2>
 <div className="flex items-center gap-2">

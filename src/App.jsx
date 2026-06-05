@@ -241,49 +241,36 @@ Revenue Model:`
 ];
 
 const generatePrompt = async () => {
-  if (!input.trim()) return;
-
-  setLoading(true);
-
   try {
-   const response = await fetch(
-  "https://contextprompt-ai-1.onrender.com/generate",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      prompt: input,
-      category: promptType,
-      tone: tone,
-      email: user?.email || "guest",
-    }),
-  }
-);
+    setLoading(true);
+
+  const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://contextprompt-ai-1.onrender.com";
+
+    console.log("API_URL =", API_URL);
+
+    const response = await fetch(`${API_URL}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: input,
+        category: promptType,
+        tone: tone,
+        email: user?.email || "guest",
+      }),
+    });
+
     const data = await response.json();
+    console.log("Response:", data);
 
     setResult(data.prompts || []);
 
-    const updatedHistory = [
-      {
-        id: crypto.randomUUID(),
-        text: input,
-        timestamp: Date.now(),
-        type: "generate",
-        resultCount: data.prompts?.length || 0,
-      },
-      ...history,
-    ];
-
-    setHistory(updatedHistory);
-    localStorage.setItem("history", JSON.stringify(updatedHistory));
-
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Generate error:", err);
+  } finally {
+    setLoading(false);
   }
-
-  setLoading(false);
 };
 
 const totalPrompts = history.length;
@@ -477,7 +464,7 @@ if (page === "saved") {
   return (
 
 <div
-  className="min-h-screen flex flex-col md:flex-row text-[#1f1f2e] bg-[#faf9ff]"
+  className="min-h-screen flex text-[#1f1f2e] bg-[#faf9ff]"
 style={{
   backgroundColor: "#f8fbff",
   backgroundImage: `
@@ -491,7 +478,7 @@ style={{
 
  <div
   className={`
-    ${sidebarOpen ? "fixed md:relative w-64 md:w-64" : "w-20"}
+    ${sidebarOpen ? "w-64" : "w-20"}
     transition-all duration-300
     border-r border-[#dfe0ff]
     p-4
@@ -502,7 +489,6 @@ style={{
   `}
 >
 <div className="mb-8 flex justify-start">
-    <button className="md:hidden">☰</button>
 <button
   onClick={() => setSidebarOpen(!sidebarOpen)}
   className="
@@ -670,7 +656,7 @@ style={{
 </div>
  {/* menu */}
 
-   <div className="flex-1 p-4 md:p-10 overflow-y-auto relative">
+   <div className="flex-1 p-10 overflow-y-auto relative">
         {page !== "home" ? (
           renderPage()
         ) : (
@@ -712,7 +698,7 @@ style={{
   <h1
   className="
     mt-6
-    text-3xl md:text-6xl
+    text-6xl
     font-extrabold
     leading-none
     text-[#1f1f2e]
@@ -779,7 +765,7 @@ style={{
   </div>
 
 </div>
- <div className="max-w-full md:max-w-4xl mx-auto mt-16 px-4">
+ <div className="max-w-4xl mx-auto mt-16 px-4">
   <div
   className="
     max-w-3xl
